@@ -1,5 +1,7 @@
 import Image from "next/image";
 import { Geist, Geist_Mono } from "next/font/google";
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,102 +14,184 @@ const geistMono = Geist_Mono({
 });
 
 export default function Home() {
+  const [mouseX, setMouseX] = useState(0);
+  const [greyPosition, setGreyPosition] = useState(0); // 专门用于控制grey.png的位置
+  const animationRef = useRef<number | null>(null);
+  const targetXRef = useRef(0);
+  const currentXRef = useRef(0);
+  
+  useEffect(() => {
+   
+    const handleMouseMove = (event: MouseEvent) => {
+      // grey.png直接跟随鼠标，无需区域限制
+      setGreyPosition(event.clientX);
+      
+      // 只在屏幕中间区域触发其他元素的移动
+      const screenWidth = window.innerWidth;
+      const activeAreaStart = screenWidth * 0.3;
+      const activeAreaEnd = screenWidth * 0.7;
+      
+      if (event.clientX >= activeAreaStart && event.clientX <= activeAreaEnd) {
+        targetXRef.current = event.clientX;
+        
+        if (animationRef.current === null) {
+          animationRef.current = requestAnimationFrame(updatePosition);
+        }
+      }
+      // if (event.clientX >= window.innerWidth) {
+      //   console.log('鼠标在屏幕的右边');
+      // } 
+
+    };
+    
+    const updatePosition = () => {
+      // 平滑过渡
+      const dx = (targetXRef.current - currentXRef.current) * 0.1;
+      if (Math.abs(dx) > 0.1) {
+        currentXRef.current += dx;
+        setMouseX(currentXRef.current);
+        animationRef.current = requestAnimationFrame(updatePosition);
+      } else {
+        currentXRef.current = targetXRef.current;
+        setMouseX(currentXRef.current);
+        animationRef.current = null;
+      }
+    };
+    
+    window.addEventListener("mousemove", handleMouseMove);
+    
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
+  
+  // 计算背景位置，限制最大移动距离
+  const calculateBgPosition = () => {
+    // 添加初始偏移量，负值使背景向上偏移
+    const initialOffset = -500;
+    
+    // 服务器端渲染时提供默认值
+    if (typeof window === 'undefined') {
+      return `center ${initialOffset}px`;
+    }
+    
+    // 反转鼠标移动方向，使鼠标左移时背景下移
+    const screenWidth = window.innerWidth;
+    const reverseMouseX = screenWidth - mouseX; // 鼠标位置反转
+    const baseMovement = reverseMouseX * 0.0; // 增加移动系数从0.01到0.03
+    const maxDownwardMovement = 500; // 最大向下移动300px，增加从100px
+    
+    // 确保baseMovement不超过最大值
+    const limitedMovement = Math.min(baseMovement, maxDownwardMovement);
+    
+    // 从初始偏移开始计算位置
+    return `center ${initialOffset + limitedMovement}px`;
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
+    <>
+      {/* 背景和装饰元素容器 */}
+      <div 
+        className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] pointer-events-none"
+        style={{
+          backgroundImage: "url('/img/4.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          position: "relative",
+          zIndex: -1
+        }}
+      >
+        {/* 原始背景图层 */}
+        <div 
+          className="fixed inset-0 pointer-events-none"
+          style={{
+            backgroundImage: "url('/img/1.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            zIndex: 0
+          }}
         />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              pages/index.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+        
+        {/* 额外背景图层 */}
+        <div 
+          className="pointer-events-none fixed top-0 h-screen w-screen overflow-hidden"
+          style={{
+            backgroundImage: "url('/img/2.png')",
+            backgroundSize: "cover",
+            // backgroundColor:'green',
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            top:'300px',
+            zIndex: -2
+          }}
+        />
+
+        <div 
+          className="pointer-events-none fixed top-0 h-screen overflow-visible"
+          style={{
+            left: `${greyPosition - 100}px`,
+            transform: "translateX(-50%)",
+            zIndex: -3,
+            willChange: "left"
+          }}
+        >
+          <Image
+            src="/img/3.png"
+            alt="Grey element"
+            width={10000}
+            height={19000}
+            style={{
+              height: '100vh',
+              width: 'auto',
+              maxWidth: 'none'
+            }}
+            priority
+            unoptimized
+          />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+      </div>
+
+      {/* 交互元素，与背景分离 */}
+      <div className="w-full h-full fixed top-0 left-0 pointer-events-none">
+        {/* 右上角Home图标 */}
+        <div className="fixed top-8 right-8 z-50 pointer-events-auto">
           <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+            src="/img/icon-home-white.png"
+            alt="Home"
+            width={32}
+            height={32}
+            className="cursor-pointer hover:opacity-80 transition-opacity"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        </div>
+        
+        {/* About 和 Contact 按钮 (左侧) */}
+        <div style={{}} className="fixed left-[12%] top-[75%] flex flex-col gap-2 z-50 pointer-events-auto">
+          <Link href="/about" style={{
+            fontWeight:'600',
+          }} className="text-white text-[35px] font-light hover:text-gray-300 hover:font-bold hover:translate-y-[-2px] transition-all text-left cursor-pointer">
+            &nbsp;&nbsp;About
+          </Link>
+          <Link href="/contact" style={{
+            fontWeight:'200',
+          }} className="text-white text-[38px] font-extralight font-['proxima-nova']">
+            Contact
+          </Link>
+        </div>
+        
+        {/* Design Portfolio 区域 (右侧) */}
+        <div className="fixed right-[49%] top-[75%] transform z-50 text-left group pointer-events-auto">
+          <h2 className="text-white text-[48px] font-thin group-hover:translate-y-[-2px] transition-all">Design</h2>
+          <Link style={{lineHeight:'15px'}} href="/list" className="text-white text-[38px] font-extralight font-['proxima-nova']">
+          <button className="text-white text-[25px] font-light hover:text-gray-300 hover:font-bold hover:translate-y-[-2px] transition-all cursor-pointer">
+            Portfolio
+          </button></Link>
+        </div>
+      </div>
+    </>
   );
 }
